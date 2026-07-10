@@ -1,0 +1,154 @@
+/* Universal News Feed Styles - v1.0 */
+.lfn-container {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.lfn-container h2 {
+  text-align: center;
+  color: #1c1e21;
+  margin-bottom: 30px;
+}
+#loading {
+  text-align: center;
+  color: #666;
+  font-size: 18px;
+  margin-top: 20px;
+}
+#newsFeed {
+  margin-top: 20px;
+}
+.news-item {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.5s ease-out,
+    transform 0.5s ease-out;
+}
+.news-item.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --- NEW: Add a background color to the image container for a professional look --- */
+.news-image-container {
+  background-color: transparent;
+  border-radius: 12px;
+}
+
+.news-image {
+  object-fit: cover; /* Default for real article images */
+  border-radius: 12px;
+  display: block;
+}
+
+/* --- NEW: The crucial override for your placeholder logos --- */
+.news-image.is-placeholder {
+  object-fit: contain; /* This will center and fit the logo, not crop it */
+}
+
+.news-title a {
+  text-decoration: none;
+  color: var(--lfn-title-color, #1c1e21);
+}
+.news-title a:hover {
+  text-decoration: underline;
+}
+.news-source {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--lfn-source-color, #65676b);
+}
+.news-description {
+  color: #333;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.news-footer {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.news-date {
+  font-style: italic;
+  color: #65676b;
+  font-size: 13px;
+}
+#loadMoreContainer {
+  text-align: center;
+  margin-top: 30px;
+  clear: both;
+}
+.load-more-btn {
+  background-color: #1877f2;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lfn-layout-list .news-item {
+  display: flex;
+  margin-bottom: 25px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 25px;
+}
+.lfn-layout-list .news-image-container {
+  flex-shrink: 0;
+  width: 160px;
+  margin-right: 20px;
+}
+.lfn-layout-list .news-image {
+  width: 160px;
+  height: 160px;
+}
+.lfn-layout-list .news-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+.lfn-layout-list .news-title {
+  font-weight: 600;
+  font-size: 20px;
+  margin: 0 0 8px 0;
+}
+.lfn-layout-grid #newsFeed {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 25px;
+}
+.lfn-layout-grid .news-item {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 0;
+}
+.lfn-layout-grid .news-image-container {
+  width: 100%;
+  margin-right: 0;
+}
+.lfn-layout-grid .news-image {
+  width: 100%;
+  height: 180px;
+}
+.lfn-layout-grid .news-content {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: space-between;
+}
+.lfn-layout-grid .news-title {
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0 0 8px 0;
+}
