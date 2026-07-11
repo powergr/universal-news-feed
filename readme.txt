@@ -2,13 +2,13 @@
 Contributors: pashalislaoutaris
 Tags: rss, news feed, aggregator, shortcode
 Requires at least: 5.8
-Tested up to: 7.01
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.0
+Stable tag: 2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A configurable, resilient plugin to display a cached news feed from any RSS sources via a shortcode, with optional per-source filtering for multiple feed sections on one page.
+A configurable, resilient plugin to display a cached news feed from any RSS sources via a shortcode.
 
 == Description ==
 
@@ -56,6 +56,9 @@ By default, hourly. This can be changed to twice daily or daily under Settings >
 
 == Changelog ==
 
+= 2.1 =
+Version 2.1 focuses on hardening the plugin for WordPress.org's automated code review standards.
+
 = 2.0 =
 * Renamed and refactored from the original single-purpose plugin into a generic, source-agnostic news feed plugin.
 * Added per-source shortcode filtering, allowing multiple independent feed sections on one page.
@@ -66,8 +69,3 @@ By default, hourly. This can be changed to twice daily or daily under Settings >
 
 = 1.0 =
 * Initial release.
-
-== Upgrade Notice ==
-
-= 2.0 =
-This version renames internal settings from the plugin's original name to a generic name. Existing settings are migrated automatically on first load after updating.
