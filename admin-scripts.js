@@ -1,9 +1,9 @@
 jQuery(document).ready(function ($) {
-  $(".unf-color-picker").wpColorPicker();
-  $("#unf-add-feed").on("click", function () {
-    const container = $("#unf-feeds-container");
+  $(".lfn-color-picker").wpColorPicker();
+  $("#lfn-add-feed").on("click", function () {
+    const container = $("#lfn-feeds-container");
     let newIndex = 0;
-    container.find(".unf-feed-row").each(function () {
+    container.find(".lfn-feed-row").each(function () {
       const name = $(this).find("input").first().attr("name");
       const match = name.match(/\[(\d+)\]/);
       if (match && parseInt(match[1]) >= newIndex) {
@@ -11,14 +11,14 @@ jQuery(document).ready(function ($) {
       }
     });
     container.append(
-      `<div class="unf-feed-row"><input type="text" name="unf_settings[rss_feeds][${newIndex}][name]" placeholder="Source Name" size="30" /><input type="url" name="unf_settings[rss_feeds][${newIndex}][url]" placeholder="RSS Feed URL" size="50" /><button type="button" class="button unf-remove-feed">Remove</button></div>`,
+      `<div class="lfn-feed-row"><input type="text" name="lfn_settings[rss_feeds][${newIndex}][name]" placeholder="Source Name" size="30" /><input type="url" name="lfn_settings[rss_feeds][${newIndex}][url]" placeholder="RSS Feed URL" size="50" /><button type="button" class="button lfn-remove-feed">Remove</button></div>`,
     );
   });
-  $("#unf-feeds-container").on("click", ".unf-remove-feed", function () {
-    $(this).closest(".unf-feed-row").remove();
+  $("#lfn-feeds-container").on("click", ".lfn-remove-feed", function () {
+    $(this).closest(".lfn-feed-row").remove();
   });
   let mediaFrame;
-  $("#unf-add-placeholder").on("click", function (e) {
+  $("#lfn-add-placeholder").on("click", function (e) {
     e.preventDefault();
     if (mediaFrame) {
       mediaFrame.open();
@@ -30,24 +30,24 @@ jQuery(document).ready(function ($) {
       multiple: true,
     });
     mediaFrame.on("select", function () {
-      const container = $("#unf-placeholders-container");
+      const container = $("#lfn-placeholders-container");
       const attachments = mediaFrame.state().get("selection").toJSON();
       attachments.forEach(function (attachment) {
         const imageUrl = attachment.sizes.thumbnail
           ? attachment.sizes.thumbnail.url
           : attachment.url;
         container.append(
-          `<div class="unf-placeholder-item"><img src="${imageUrl}" /><input type="hidden" name="unf_settings[placeholders][]" value="${attachment.url}"><button type="button" class="button unf-remove-placeholder">Remove</button></div>`,
+          `<div class="lfn-placeholder-item"><img src="${imageUrl}" /><input type="hidden" name="lfn_settings[placeholders][]" value="${attachment.url}"><button type="button" class="button lfn-remove-placeholder">Remove</button></div>`,
         );
       });
     });
     mediaFrame.open();
   });
-  $("#unf-placeholders-container").on(
+  $("#lfn-placeholders-container").on(
     "click",
-    ".unf-remove-placeholder",
+    ".lfn-remove-placeholder",
     function () {
-      $(this).closest(".unf-placeholder-item").remove();
+      $(this).closest(".lfn-placeholder-item").remove();
     },
   );
 });

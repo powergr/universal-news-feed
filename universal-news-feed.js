@@ -1,16 +1,16 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const containers = document.querySelectorAll(".unf-container");
+  const containers = document.querySelectorAll(".lfn-container");
   if (!containers.length) {
     return;
   }
   containers.forEach(initFeedInstance);
 
   function initFeedInstance(container) {
-    const dataScript = container.querySelector(".unf-data");
-    const loadingDiv = container.querySelector(".unf-loading");
-    const newsFeedDiv = container.querySelector(".unf-feed");
+    const dataScript = container.querySelector(".lfn-data");
+    const loadingDiv = container.querySelector(".lfn-loading");
+    const newsFeedDiv = container.querySelector(".lfn-feed");
     const loadMoreContainer = container.querySelector(
-      ".unf-load-more-container",
+      ".lfn-load-more-container",
     );
     if (!dataScript || !newsFeedDiv) {
       return;
