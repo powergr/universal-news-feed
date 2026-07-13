@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   const containers = document.querySelectorAll(".lfn-container");
-  if (!containers.length) {
-    return;
-  }
+  if (!containers.length) { return; }
   containers.forEach(initFeedInstance);
 
   // Only allow http(s) URLs through to href/src. Feed content is untrusted, so this
@@ -16,34 +14,28 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  function parseDate(pubDate) {
-    if (!pubDate) {
-      return "Date not available";
-    }
+  function parseDate(pubDate, notAvailableText) {
+    if (!pubDate) { return notAvailableText; }
     const d = new Date(pubDate);
-    return isNaN(d.getTime()) ? "Date not available" : d.toLocaleString();
+    return isNaN(d.getTime()) ? notAvailableText : d.toLocaleString();
   }
 
   function initFeedInstance(container) {
     const dataScript = container.querySelector(".lfn-data");
     const loadingDiv = container.querySelector(".lfn-loading");
     const newsFeedDiv = container.querySelector(".lfn-feed");
-    const loadMoreContainer = container.querySelector(
-      ".lfn-load-more-container",
-    );
-    if (!dataScript || !newsFeedDiv) {
-      return;
-    }
+    const loadMoreContainer = container.querySelector(".lfn-load-more-container");
+    if (!dataScript || !newsFeedDiv) { return; }
 
     let feedData;
     try {
       feedData = JSON.parse(dataScript.textContent);
     } catch (e) {
-      if (loadingDiv) {
-        loadingDiv.textContent = "Unable to load news.";
-      }
+      if (loadingDiv) { loadingDiv.textContent = "Unable to load news."; }
       return;
     }
+
+    const i18n = feedData.i18n || {};
 
     const allNews = feedData.posts || [];
     const PLACEHOLDER_URLS = feedData.placeholders || [];
@@ -52,10 +44,10 @@ document.addEventListener("DOMContentLoaded", function () {
     let currentPage = 0;
 
     function buildNewsItem(news) {
-      const title = news.title || "No Title";
+      const title = news.title || i18n.no_title || "No Title";
       const rawLink = news.link || "#";
       const link = rawLink === "#" || isSafeUrl(rawLink) ? rawLink : "#";
-      const sourceName = news.sourceName || "Unknown";
+      const sourceName = news.sourceName || i18n.unknown_source || "Unknown";
       let imageUrl = "";
       let isPlaceholder = false;
 
@@ -74,9 +66,7 @@ document.addEventListener("DOMContentLoaded", function () {
           imageUrl = match[1];
         }
       }
-      if (imageUrl && !isSafeUrl(imageUrl)) {
-        imageUrl = "";
-      }
+      if (imageUrl && !isSafeUrl(imageUrl)) { imageUrl = ""; }
 
       if (!imageUrl && PLACEHOLDER_URLS.length > 0) {
         imageUrl =
@@ -84,16 +74,13 @@ document.addEventListener("DOMContentLoaded", function () {
         isPlaceholder = true;
       }
 
-      const strippedDescription = (news.description || "").replace(
-        /<[^>]*>/g,
-        "",
-      );
+      const strippedDescription = (news.description || "").replace(/<[^>]*>/g, "");
       const EXCERPT_LENGTH = 140;
       const descriptionText =
         strippedDescription.length > EXCERPT_LENGTH
           ? strippedDescription.substring(0, EXCERPT_LENGTH).trim() + "..."
           : strippedDescription;
-      const dateString = parseDate(news.pubDate);
+      const dateString = parseDate(news.pubDate, i18n.date_not_available || "Date not available");
 
       const newsItem = document.createElement("div");
       newsItem.className = "news-item";
@@ -105,6 +92,8 @@ document.addEventListener("DOMContentLoaded", function () {
         imageLink.href = link;
         imageLink.target = "_blank";
         imageLink.rel = "nofollow noopener noreferrer";
+        imageLink.tabIndex = -1;
+        imageLink.setAttribute("aria-hidden", "true");
         const img = document.createElement("img");
         img.src = imageUrl;
         img.alt = title.substring(0, 50);
@@ -120,10 +109,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           if (PLACEHOLDER_URLS.length > 0) {
             this.dataset.fallbackApplied = "true";
-            this.src =
-              PLACEHOLDER_URLS[
-                Math.floor(Math.random() * PLACEHOLDER_URLS.length)
-              ];
+            this.src = PLACEHOLDER_URLS[Math.floor(Math.random() * PLACEHOLDER_URLS.length)];
             this.classList.add("is-placeholder");
           } else {
             this.style.display = "none";
@@ -141,7 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const sourceDiv = document.createElement("div");
       sourceDiv.className = "news-source";
-      sourceDiv.textContent = `From: ${sourceName}`;
+      sourceDiv.textContent = `${i18n.from_prefix || "From:"} ${sourceName}`;
       topGroup.appendChild(sourceDiv);
 
       const titleDiv = document.createElement("div");
@@ -196,16 +182,14 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    if (loadingDiv) {
-      loadingDiv.style.display = "none";
-    }
+    if (loadingDiv) { loadingDiv.style.display = "none"; }
     if (allNews && allNews.length > 0) {
       if (LOAD_MORE_ENABLED) {
         renderItems(allNews.slice(0, ITEMS_PER_PAGE));
         if (allNews.length > ITEMS_PER_PAGE && loadMoreContainer) {
           const loadMoreBtn = document.createElement("button");
           loadMoreBtn.className = "load-more-btn";
-          loadMoreBtn.textContent = "Load More News";
+          loadMoreBtn.textContent = i18n.load_more || "Load More News";
           loadMoreBtn.onclick = handleLoadMore;
           loadMoreContainer.appendChild(loadMoreBtn);
         }
@@ -213,7 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
         renderItems(allNews);
       }
     } else if (loadingDiv) {
-      loadingDiv.textContent = "No news available.";
+      loadingDiv.textContent = i18n.no_news_available || "No news available.";
       loadingDiv.style.display = "block";
     }
   }
