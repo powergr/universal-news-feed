@@ -4,7 +4,7 @@ Tags: rss, news feed, aggregator, shortcode
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.1
+Stable tag: 2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,9 @@ Yes. Use the `source` attribute on the shortcode with the exact Source Name you 
 By default, hourly. This can be changed to twice daily or daily under Settings > Universal News Feed > Advanced. You can also trigger an immediate refresh with the "Force Refresh Now" button on the settings screen.
 
 == Changelog ==
+
+= 2.2 =
+Version 2.2 expands the debug logging introduced in 2.1 to cover the entire fetch pipeline, not just local image caching: it now logs which feed is being fetched, whether the external service or internal parser was used, how many items each feed returned, every attempt to find an og:image fallback (including the exact HTTP status or error returned), and a clear summary when no image could be found anywhere for an article. This logging traced a real bug: Business of Fashion's feed data stores its image in a different field (enclosure) than most other sources (thumbnail), which meant BOF's images were silently skipping the caching system entirely and hotlinking directly to BOF's CDN — the fix now checks both fields, so BOF images get cached and served locally like everything else. Separately, the Debug Log tab gained a "Clear Image Cache" button, so cached images can be wiped from the WordPress admin directly, without needing server/SSH access.
 
 = 2.1 =
 Version 2.1 focuses on hardening the plugin for WordPress.org's automated code review standards.

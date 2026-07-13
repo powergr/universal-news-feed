@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Universal News Feed
  * Description:       A configurable, resilient plugin to display a cached news feed from any RSS sources via a shortcode.
- * Version:           2.1
+ * Version:           2.2
  * Author:            Pashalis Laoutaris
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -28,7 +28,7 @@ class Universal_News_Feed_Plugin {
 
         $options = get_option('lfn_settings', []);
         $this->shortcode_tag = isset($options['shortcode_tag']) && !empty($options['shortcode_tag']) ? $options['shortcode_tag'] : 'latest-news-feed';
-        add_filter('cron_schedules', [$this, 'add_custom_cron_schedules']); add_action('admin_menu', [$this, 'add_admin_menu']); add_action('admin_init', [$this, 'setup_settings_fields']); add_action('admin_init', [$this, 'handle_force_refresh']); add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']); add_filter('plugin_action_links_' . plugin_basename(__FILE__), [$this, 'add_settings_link']); add_shortcode($this->shortcode_tag, [$this, 'render_shortcode']); add_action('wp_enqueue_scripts', [$this, 'enqueue_public_assets']); add_action('unf_fetch_news_hook', [$this, 'fetch_and_cache_news_data']);
+        add_filter('cron_schedules', [$this, 'add_custom_cron_schedules']); add_action('admin_menu', [$this, 'add_admin_menu']); add_action('admin_init', [$this, 'setup_settings_fields']); add_action('admin_init', [$this, 'handle_force_refresh']); add_action('admin_init', [$this, 'handle_clear_debug_log']); add_action('admin_init', [$this, 'handle_clear_image_cache']); add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']); add_filter('plugin_action_links_' . plugin_basename(__FILE__), [$this, 'add_settings_link']); add_shortcode($this->shortcode_tag, [$this, 'render_shortcode']); add_action('wp_enqueue_scripts', [$this, 'enqueue_public_assets']); add_action('unf_fetch_news_hook', [$this, 'fetch_and_cache_news_data']);
         if (!wp_next_scheduled('unf_fetch_news_hook')) { $frequency = isset($options['update_frequency']) ? $options['update_frequency'] : 'hourly'; wp_schedule_event(time(), $frequency, 'unf_fetch_news_hook'); }
     }
     public function plugin_activation() { if (!wp_next_scheduled('unf_fetch_news_hook')) { $options = get_option('lfn_settings', []); $frequency = isset($options['update_frequency']) ? $options['update_frequency'] : 'hourly'; wp_schedule_event(time(), $frequency, 'unf_fetch_news_hook'); } wp_schedule_single_event(time() + 10, 'unf_fetch_news_hook'); }
@@ -46,20 +46,33 @@ class Universal_News_Feed_Plugin {
                 /* translators: %s: URL of the General Settings screen, where the site timezone can be changed. */
                 printf(wp_kses(__('Time is based on your <a href="%s">WordPress timezone setting</a>.', 'universal-news-feed'), ['a' => ['href' => []]]), esc_url(admin_url('options-general.php')));
             ?></em> </p></div><form method="post" action=""><input type="hidden" name="lfn_force_refresh" value="1"><?php wp_nonce_field('lfn_force_refresh_action'); submit_button(__('Force Refresh Now', 'universal-news-feed'), 'secondary', 'lfn_force_refresh_submit', false); ?></form></div>
-            <h2 class="nav-tab-wrapper"><a href="?page=universal_news_feed_settings&tab=general" class="nav-tab <?php echo $active_tab == 'general' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('General', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=style" class="nav-tab <?php echo $active_tab == 'style' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Style', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=feeds" class="nav-tab <?php echo $active_tab == 'feeds' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Feeds & Images', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=advanced" class="nav-tab <?php echo $active_tab == 'advanced' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Advanced', 'universal-news-feed'); ?></a></h2>
+            <h2 class="nav-tab-wrapper"><a href="?page=universal_news_feed_settings&tab=general" class="nav-tab <?php echo $active_tab == 'general' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('General', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=style" class="nav-tab <?php echo $active_tab == 'style' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Style', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=feeds" class="nav-tab <?php echo $active_tab == 'feeds' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Feeds & Images', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=advanced" class="nav-tab <?php echo $active_tab == 'advanced' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Advanced', 'universal-news-feed'); ?></a><a href="?page=universal_news_feed_settings&tab=debug_log" class="nav-tab <?php echo $active_tab == 'debug_log' ? 'nav-tab-active' : ''; ?>"><?php esc_html_e('Debug Log', 'universal-news-feed'); ?></a></h2>
+            <?php if ($active_tab === 'debug_log') { ?>
+                <div style="margin-top: 15px;">
+                    <p class="description"><?php esc_html_e('Enable "Debug Logging" under the Advanced tab, then click Force Refresh Now above to populate this log with details about each image fetch attempt (useful for figuring out why a source is showing placeholder images).', 'universal-news-feed'); ?></p>
+                    <?php $log_content = $this->read_debug_log_tail(); ?>
+                    <textarea readonly rows="25" class="large-text code" style="font-family: monospace; white-space: pre; background:#1e1e1e; color:#ddd;"><?php echo esc_textarea($log_content !== '' ? $log_content : __('(Log is empty.)', 'universal-news-feed')); ?></textarea>
+                    <div style="display:flex; gap:10px; margin-top: 10px;">
+                        <form method="post" action=""><input type="hidden" name="lfn_clear_debug_log_submit" value="1"><?php wp_nonce_field('lfn_clear_debug_log_action'); submit_button(__('Clear Log', 'universal-news-feed'), 'delete', 'lfn_clear_debug_log_submit', false); ?></form>
+                        <form method="post" action="" onsubmit="return confirm('<?php echo esc_js(__('This will delete all locally cached images. They will be re-downloaded on the next fetch. Continue?', 'universal-news-feed')); ?>');"><input type="hidden" name="lfn_clear_image_cache_submit" value="1"><?php wp_nonce_field('lfn_clear_image_cache_action'); submit_button(__('Clear Image Cache', 'universal-news-feed'), 'delete', 'lfn_clear_image_cache_submit', false); ?></form>
+                    </div>
+                </div>
+            <?php } else { ?>
             <form action="options.php" method="post">
                 <?php settings_fields('lfn_settings_group'); if ($active_tab == 'general') { do_settings_sections('lfn_general_section'); } if ($active_tab == 'style') { do_settings_sections('lfn_style_section'); } if ($active_tab == 'feeds') { do_settings_sections('lfn_feeds_section'); do_settings_sections('lfn_placeholders_section'); } if ($active_tab == 'advanced') { do_settings_sections('lfn_advanced_section'); } submit_button(); ?>
             </form>
+            <?php } ?>
         </div>
         <?php
     }
 
     public function handle_force_refresh() { if (isset($_POST['lfn_force_refresh_submit']) && current_user_can('manage_options')) { check_admin_referer('lfn_force_refresh_action'); $this->fetch_and_cache_news_data(); add_action('admin_notices', function() { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('News feed cache has been successfully refreshed.', 'universal-news-feed') . '</p></div>'; }); } }
-    public function setup_settings_fields() { register_setting('lfn_settings_group', 'lfn_settings', [$this, 'sanitize_settings']); add_settings_section('lfn_general_section', false, null, 'lfn_general_section'); add_settings_field('lfn_feed_title_field', __('Feed Title', 'universal-news-feed'), [$this, 'render_feed_title_field'], 'lfn_general_section', 'lfn_general_section'); add_settings_field('lfn_load_more_field', __('Pagination', 'universal-news-feed'), [$this, 'render_load_more_field'], 'lfn_general_section', 'lfn_general_section'); add_settings_field('lfn_items_per_page_field', __('Items Per Page', 'universal-news-feed'), [$this, 'render_items_per_page_field'], 'lfn_general_section', 'lfn_general_section'); add_settings_section('lfn_style_section', false, null, 'lfn_style_section'); add_settings_field('lfn_layout_field', __('Feed Layout', 'universal-news-feed'), [$this, 'render_layout_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_field('lfn_title_color_field', __('Title Color', 'universal-news-feed'), [$this, 'render_title_color_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_field('lfn_source_color_field', __('Source Name Color', 'universal-news-feed'), [$this, 'render_source_color_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_field('lfn_custom_css_field', __('Custom CSS', 'universal-news-feed'), [$this, 'render_custom_css_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_section('lfn_feeds_section', __('RSS Feed Sources', 'universal-news-feed'), null, 'lfn_feeds_section'); add_settings_field('lfn_rss_feeds_field', __('Feeds', 'universal-news-feed'), [$this, 'render_feeds_field'], 'lfn_feeds_section', 'lfn_feeds_section'); add_settings_section('lfn_placeholders_section', __('Placeholder Images', 'universal-news-feed'), null, 'lfn_placeholders_section'); add_settings_field('lfn_placeholders_field', __('Images', 'universal-news-feed'), [$this, 'render_placeholders_field'], 'lfn_placeholders_section', 'lfn_placeholders_section'); add_settings_section('lfn_advanced_section', false, null, 'lfn_advanced_section'); add_settings_field('lfn_update_frequency_field', __('Update Frequency', 'universal-news-feed'), [$this, 'render_update_frequency_field'], 'lfn_advanced_section', 'lfn_advanced_section'); add_settings_field('lfn_shortcode_field', __('Custom Shortcode', 'universal-news-feed'), [$this, 'render_shortcode_field'], 'lfn_advanced_section', 'lfn_advanced_section'); }
+    public function setup_settings_fields() { register_setting('lfn_settings_group', 'lfn_settings', [$this, 'sanitize_settings']); add_settings_section('lfn_general_section', false, null, 'lfn_general_section'); add_settings_field('lfn_feed_title_field', __('Feed Title', 'universal-news-feed'), [$this, 'render_feed_title_field'], 'lfn_general_section', 'lfn_general_section'); add_settings_field('lfn_load_more_field', __('Pagination', 'universal-news-feed'), [$this, 'render_load_more_field'], 'lfn_general_section', 'lfn_general_section'); add_settings_field('lfn_items_per_page_field', __('Items Per Page', 'universal-news-feed'), [$this, 'render_items_per_page_field'], 'lfn_general_section', 'lfn_general_section'); add_settings_section('lfn_style_section', false, null, 'lfn_style_section'); add_settings_field('lfn_layout_field', __('Feed Layout', 'universal-news-feed'), [$this, 'render_layout_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_field('lfn_title_color_field', __('Title Color', 'universal-news-feed'), [$this, 'render_title_color_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_field('lfn_source_color_field', __('Source Name Color', 'universal-news-feed'), [$this, 'render_source_color_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_field('lfn_custom_css_field', __('Custom CSS', 'universal-news-feed'), [$this, 'render_custom_css_field'], 'lfn_style_section', 'lfn_style_section'); add_settings_section('lfn_feeds_section', __('RSS Feed Sources', 'universal-news-feed'), null, 'lfn_feeds_section'); add_settings_field('lfn_rss_feeds_field', __('Feeds', 'universal-news-feed'), [$this, 'render_feeds_field'], 'lfn_feeds_section', 'lfn_feeds_section'); add_settings_section('lfn_placeholders_section', __('Placeholder Images', 'universal-news-feed'), null, 'lfn_placeholders_section'); add_settings_field('lfn_placeholders_field', __('Images', 'universal-news-feed'), [$this, 'render_placeholders_field'], 'lfn_placeholders_section', 'lfn_placeholders_section'); add_settings_section('lfn_advanced_section', false, null, 'lfn_advanced_section'); add_settings_field('lfn_update_frequency_field', __('Update Frequency', 'universal-news-feed'), [$this, 'render_update_frequency_field'], 'lfn_advanced_section', 'lfn_advanced_section'); add_settings_field('lfn_shortcode_field', __('Custom Shortcode', 'universal-news-feed'), [$this, 'render_shortcode_field'], 'lfn_advanced_section', 'lfn_advanced_section'); add_settings_field('lfn_debug_logging_field', __('Debug Logging', 'universal-news-feed'), [$this, 'render_debug_logging_field'], 'lfn_advanced_section', 'lfn_advanced_section'); }
     public function render_feed_title_field() { $options = get_option('lfn_settings'); $title = isset($options['feed_title']) ? $options['feed_title'] : 'Latest News'; echo '<input type="text" name="lfn_settings[feed_title]" value="' . esc_attr($title) . '" size="40">'; }
     public function render_load_more_field() { $options = get_option('lfn_settings'); $load_more = isset($options['load_more_enabled']) ? $options['load_more_enabled'] : 1; echo '<input type="checkbox" name="lfn_settings[load_more_enabled]" value="1"' . checked(1, $load_more, false) . '> ' . esc_html__('Enable "Load More" button', 'universal-news-feed'); }
     public function render_items_per_page_field() { $options = get_option('lfn_settings'); $items = isset($options['items_per_page']) ? $options['items_per_page'] : 8; echo '<input type="number" name="lfn_settings[items_per_page]" value="' . esc_attr($items) . '" min="1" max="100">'; }
     public function render_update_frequency_field() { $options = get_option('lfn_settings'); $current = isset($options['update_frequency']) ? $options['update_frequency'] : 'hourly'; $schedules = ['hourly' => __('Hourly', 'universal-news-feed'), 'twicedaily' => __('Twice a Day', 'universal-news-feed'), 'daily' => __('Daily', 'universal-news-feed')]; echo '<select name="lfn_settings[update_frequency]">'; foreach ($schedules as $value => $label) { echo '<option value="' . esc_attr($value) . '" ' . selected($current, $value, false) . '>' . esc_html($label) . '</option>'; } echo '</select>'; }
+    public function render_debug_logging_field() { $options = get_option('lfn_settings'); $enabled = isset($options['debug_logging_enabled']) ? $options['debug_logging_enabled'] : 0; echo '<input type="checkbox" name="lfn_settings[debug_logging_enabled]" value="1"' . checked(1, $enabled, false) . '> ' . esc_html__('Log image-fetching activity for troubleshooting. View it under the Debug Log tab above.', 'universal-news-feed'); }
     public function render_shortcode_field() { $options = get_option('lfn_settings'); $tag = isset($options['shortcode_tag']) && !empty($options['shortcode_tag']) ? $options['shortcode_tag'] : 'latest-news-feed'; echo '<input type="text" name="lfn_settings[shortcode_tag]" value="' . esc_attr($tag) . '"><p class="description">' . esc_html__('Use simple, lowercase letters and dashes only.', 'universal-news-feed') . '</p>'; }
     public function render_layout_field() { $options = get_option('lfn_settings'); $layout = isset($options['layout']) ? $options['layout'] : 'list'; echo '<select name="lfn_settings[layout]"><option value="list" ' . selected($layout, 'list', false) . '>' . esc_html__('List', 'universal-news-feed') . '</option><option value="grid" ' . selected($layout, 'grid', false) . '>' . esc_html__('Grid', 'universal-news-feed') . '</option></select>'; }
     public function render_title_color_field() { $options = get_option('lfn_settings'); $color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; echo '<input type="text" name="lfn_settings[title_color]" value="' . esc_attr($color) . '" class="lfn-color-picker">'; }
@@ -67,9 +80,9 @@ class Universal_News_Feed_Plugin {
     public function render_custom_css_field() { $options = get_option('lfn_settings'); $css = isset($options['custom_css']) ? $options['custom_css'] : ''; echo '<textarea name="lfn_settings[custom_css]" rows="8" cols="50" class="large-text code">' . esc_textarea($css) . '</textarea><p class="description"><strong>' . esc_html__('How to use Custom CSS:', 'universal-news-feed') . '</strong><br>' . esc_html__('Key Classes:', 'universal-news-feed') . ' <code>.lfn-container</code>, <code>.news-item</code>, <code>.news-title a</code></p>'; }
     public function render_feeds_field() { $options = get_option('lfn_settings'); ?><div id="lfn-feeds-container"><p class="description"><?php esc_html_e('Add the name and URL for each RSS feed source.', 'universal-news-feed'); ?></p><?php $feeds = isset($options['rss_feeds']) ? $options['rss_feeds'] : []; if(!empty($feeds)){foreach($feeds as $index=>$feed){?><div class="lfn-feed-row"><input type="text" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][name]" value="<?php echo esc_attr($feed['name']);?>" placeholder="<?php esc_attr_e('Source Name', 'universal-news-feed');?>" size="30"/><input type="url" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][url]" value="<?php echo esc_attr($feed['url']);?>" placeholder="<?php esc_attr_e('RSS Feed URL', 'universal-news-feed');?>" size="50"/><button type="button" class="button lfn-remove-feed"><?php esc_html_e('Remove', 'universal-news-feed'); ?></button></div><?php }}?></div><button type="button" class="button" id="lfn-add-feed"><?php esc_html_e('Add Feed', 'universal-news-feed'); ?></button><?php }
     public function render_placeholders_field() { $options = get_option('lfn_settings'); ?><div id="lfn-placeholders-container"><p class="description"><?php esc_html_e('Select images from your Media Library.', 'universal-news-feed'); ?></p><?php $placeholders = isset($options['placeholders']) ? $options['placeholders'] : []; if(!empty($placeholders)){foreach($placeholders as $index=>$url){?><div class="lfn-placeholder-item"><img src="<?php echo esc_url($url);?>"/><input type="hidden" name="lfn_settings[placeholders][]" value="<?php echo esc_url($url);?>"><button type="button" class="button lfn-remove-placeholder"><?php esc_html_e('Remove', 'universal-news-feed');?></button></div><?php }}?></div><button type="button" class="button" id="lfn-add-placeholder"><?php esc_html_e('Add Placeholder Image', 'universal-news-feed'); ?></button><style> .lfn-feed-row{margin-bottom:10px;} #lfn-placeholders-container{display:flex;flex-wrap:wrap;gap:15px;} .lfn-placeholder-item{position:relative;} .lfn-placeholder-item img{width:100px;height:100px;object-fit:cover;border:1px solid #ddd;} .lfn-placeholder-item button{position:absolute;top:5px;right:5px;} </style><?php }
-    public function enqueue_admin_assets($hook) { if ($hook !== 'settings_page_universal_news_feed_settings') { return; } wp_enqueue_media(); wp_enqueue_style('wp-color-picker'); wp_enqueue_script('lfn-admin-script', plugin_dir_url(__FILE__) . 'admin-scripts.js', ['jquery', 'wp-color-picker'], '2.1', true); }
-    public function sanitize_settings($input) { $old_options = get_option('lfn_settings', []); $new_input = $input; $merged_input = array_merge($old_options, $new_input); $sanitized_input = []; $schedules = wp_get_schedules(); if(isset($merged_input['update_frequency']) && array_key_exists($merged_input['update_frequency'], $schedules)) { if(!isset($old_options['update_frequency']) || $old_options['update_frequency'] !== $merged_input['update_frequency']) { $this->reschedule_cron_job($merged_input['update_frequency']); } $sanitized_input['update_frequency'] = $merged_input['update_frequency']; } if(isset($merged_input['feed_title'])) { $sanitized_input['feed_title'] = sanitize_text_field($merged_input['feed_title']); } $sanitized_input['load_more_enabled'] = isset($merged_input['load_more_enabled'])?1:0; if(isset($merged_input['items_per_page'])){$items=absint($merged_input['items_per_page']);$sanitized_input['items_per_page']=($items>0)?$items:8;} if(isset($merged_input['shortcode_tag'])){$tag=sanitize_key($merged_input['shortcode_tag']);$sanitized_input['shortcode_tag']=!empty($tag)?$tag:'latest-news-feed';} if(isset($merged_input['layout'])){$sanitized_input['layout']=in_array($merged_input['layout'],['list','grid'])?$merged_input['layout']:'list';} if(isset($merged_input['title_color'])){$sanitized_input['title_color']=sanitize_hex_color($merged_input['title_color']);} if(isset($merged_input['source_color'])){$sanitized_input['source_color']=sanitize_hex_color($merged_input['source_color']);} if(isset($merged_input['custom_css'])){$sanitized_input['custom_css']=wp_strip_all_tags($merged_input['custom_css']);} if(isset($merged_input['rss_feeds'])){$sanitized_input['rss_feeds']=[];foreach($merged_input['rss_feeds'] as $feed){if(!empty(trim($feed['name']))&&!empty(trim($feed['url']))){$sanitized_input['rss_feeds'][]=['name'=>sanitize_text_field($feed['name']),'url'=>esc_url_raw($feed['url'])];}}} if(isset($merged_input['placeholders'])){$sanitized_input['placeholders']=array_map('esc_url_raw',$merged_input['placeholders']);}elseif(array_key_exists('placeholders',$input)){$sanitized_input['placeholders']=[];} wp_cache_flush(); if(class_exists('LiteSpeed_Cache_API')){LiteSpeed_Cache_API::purge_all();} $this->fetch_and_cache_news_data($sanitized_input); return $sanitized_input; }
-    public function enqueue_public_assets() { $options = get_option('lfn_settings'); $title_color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; $source_color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; $custom_css = isset($options['custom_css']) ? $options['custom_css'] : ''; $dynamic_css = ":root { --lfn-title-color: " . esc_attr($title_color) . "; --lfn-source-color: " . esc_attr($source_color) . "; }"; $dynamic_css .= $custom_css; wp_add_inline_style('universal-news-feed-style', $dynamic_css); wp_enqueue_style('universal-news-feed-style', plugin_dir_url(__FILE__) . 'universal-news-feed.css', [], '2.1'); wp_enqueue_script('universal-news-feed-script', plugin_dir_url(__FILE__) . 'universal-news-feed.js', [], '2.1', true); }
+    public function enqueue_admin_assets($hook) { if ($hook !== 'settings_page_universal_news_feed_settings') { return; } wp_enqueue_media(); wp_enqueue_style('wp-color-picker'); wp_enqueue_script('lfn-admin-script', plugin_dir_url(__FILE__) . 'admin-scripts.js', ['jquery', 'wp-color-picker'], '2.2', true); }
+    public function sanitize_settings($input) { $old_options = get_option('lfn_settings', []); $new_input = $input; $merged_input = array_merge($old_options, $new_input); $sanitized_input = []; $schedules = wp_get_schedules(); if(isset($merged_input['update_frequency']) && array_key_exists($merged_input['update_frequency'], $schedules)) { if(!isset($old_options['update_frequency']) || $old_options['update_frequency'] !== $merged_input['update_frequency']) { $this->reschedule_cron_job($merged_input['update_frequency']); } $sanitized_input['update_frequency'] = $merged_input['update_frequency']; } if(isset($merged_input['feed_title'])) { $sanitized_input['feed_title'] = sanitize_text_field($merged_input['feed_title']); } $sanitized_input['load_more_enabled'] = isset($merged_input['load_more_enabled'])?1:0; $sanitized_input['debug_logging_enabled'] = isset($merged_input['debug_logging_enabled'])?1:0; if(isset($merged_input['items_per_page'])){$items=absint($merged_input['items_per_page']);$sanitized_input['items_per_page']=($items>0)?$items:8;} if(isset($merged_input['shortcode_tag'])){$tag=sanitize_key($merged_input['shortcode_tag']);$sanitized_input['shortcode_tag']=!empty($tag)?$tag:'latest-news-feed';} if(isset($merged_input['layout'])){$sanitized_input['layout']=in_array($merged_input['layout'],['list','grid'])?$merged_input['layout']:'list';} if(isset($merged_input['title_color'])){$sanitized_input['title_color']=sanitize_hex_color($merged_input['title_color']);} if(isset($merged_input['source_color'])){$sanitized_input['source_color']=sanitize_hex_color($merged_input['source_color']);} if(isset($merged_input['custom_css'])){$sanitized_input['custom_css']=wp_strip_all_tags($merged_input['custom_css']);} if(isset($merged_input['rss_feeds'])){$sanitized_input['rss_feeds']=[];foreach($merged_input['rss_feeds'] as $feed){if(!empty(trim($feed['name']))&&!empty(trim($feed['url']))){$sanitized_input['rss_feeds'][]=['name'=>sanitize_text_field($feed['name']),'url'=>esc_url_raw($feed['url'])];}}} if(isset($merged_input['placeholders'])){$sanitized_input['placeholders']=array_map('esc_url_raw',$merged_input['placeholders']);}elseif(array_key_exists('placeholders',$input)){$sanitized_input['placeholders']=[];} wp_cache_flush(); if(class_exists('LiteSpeed_Cache_API')){LiteSpeed_Cache_API::purge_all();} $this->fetch_and_cache_news_data($sanitized_input); return $sanitized_input; }
+    public function enqueue_public_assets() { $options = get_option('lfn_settings'); $title_color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; $source_color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; $custom_css = isset($options['custom_css']) ? $options['custom_css'] : ''; $dynamic_css = ":root { --lfn-title-color: " . esc_attr($title_color) . "; --lfn-source-color: " . esc_attr($source_color) . "; }"; $dynamic_css .= $custom_css; wp_add_inline_style('universal-news-feed-style', $dynamic_css); wp_enqueue_style('universal-news-feed-style', plugin_dir_url(__FILE__) . 'universal-news-feed.css', [], '2.2'); wp_enqueue_script('universal-news-feed-script', plugin_dir_url(__FILE__) . 'universal-news-feed.js', [], '2.2', true); }
     public function render_shortcode($atts = []) {
         $atts = shortcode_atts(['source' => ''], $atts, $this->shortcode_tag);
         $options = get_option('lfn_settings');
@@ -118,11 +131,15 @@ class Universal_News_Feed_Plugin {
 
     private function fetch_og_image($article_url) {
         if (empty($article_url)) { return ''; }
+        $debug = $this->is_debug_logging_enabled();
         $response = wp_remote_get($article_url, [ 'timeout' => 10, 'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' ]);
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) { return ''; }
+        if (is_wp_error($response)) { if ($debug) { $this->log_debug('og:image fetch failed for ' . $article_url . ': ' . $response->get_error_message()); } return ''; }
+        $status_code = wp_remote_retrieve_response_code($response);
+        if ($status_code !== 200) { if ($debug) { $this->log_debug('og:image fetch got HTTP ' . $status_code . ' for ' . $article_url); } return ''; }
         $body = wp_remote_retrieve_body($response);
-        if (preg_match('/<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']/i', $body, $matches)) { return html_entity_decode($matches[1]); }
-        if (preg_match('/<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']/i', $body, $matches)) { return html_entity_decode($matches[1]); }
+        if (preg_match('/<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']/i', $body, $matches)) { if ($debug) { $this->log_debug('og:image found for ' . $article_url . ': ' . $matches[1]); } return html_entity_decode($matches[1]); }
+        if (preg_match('/<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']/i', $body, $matches)) { if ($debug) { $this->log_debug('og:image found for ' . $article_url . ': ' . $matches[1]); } return html_entity_decode($matches[1]); }
+        if ($debug) { $this->log_debug('No og:image tag found on ' . $article_url); }
         return '';
     }
 
@@ -137,22 +154,159 @@ class Universal_News_Feed_Plugin {
         return HOUR_IN_SECONDS;
     }
 
+    private function get_image_cache_dir() {
+        $upload_dir = wp_upload_dir();
+        $cache_dir = trailingslashit($upload_dir['basedir']) . 'universal-news-feed-cache';
+        if (!file_exists($cache_dir)) { wp_mkdir_p($cache_dir); }
+        return $cache_dir;
+    }
+
+    private function get_image_cache_url() {
+        $upload_dir = wp_upload_dir();
+        return trailingslashit($upload_dir['baseurl']) . 'universal-news-feed-cache';
+    }
+
+    // Downloads a remote image once and saves it locally, so the browser loads it from our
+    // own domain instead of hotlinking the publisher's server directly (some publishers block
+    // cross-origin image requests based on the Referer header). Returns the local URL on
+    // success, or an empty string on any failure — callers should keep using the original
+    // remote URL as a fallback when this returns nothing.
+    // Writes to the plugin's own log file instead of relying on WordPress's debug.log,
+    // since some hosts lock the PHP error_log path at the server level and silently
+    // ignore WordPress's attempt to redirect it.
+    private function read_debug_log_tail() {
+        $path = $this->get_debug_log_path();
+        if (!file_exists($path)) { return ''; }
+        $max_bytes = 200 * 1024; // Cap what we read/display to 200KB, most recent entries.
+        $size = filesize($path);
+        $handle = fopen($path, 'r');
+        if (!$handle) { return ''; }
+        if ($size > $max_bytes) { fseek($handle, -$max_bytes, SEEK_END); fgets($handle); } // drop partial first line
+        $content = stream_get_contents($handle);
+        fclose($handle);
+        return $content;
+    }
+
+    public function handle_clear_debug_log() {
+        if (isset($_POST['lfn_clear_debug_log_submit']) && current_user_can('manage_options')) {
+            check_admin_referer('lfn_clear_debug_log_action');
+            $path = $this->get_debug_log_path();
+            if (file_exists($path)) { @unlink($path); }
+            add_action('admin_notices', function() { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Debug log cleared.', 'universal-news-feed') . '</p></div>'; });
+        }
+    }
+
+    public function handle_clear_image_cache() {
+        if (isset($_POST['lfn_clear_image_cache_submit']) && current_user_can('manage_options')) {
+            check_admin_referer('lfn_clear_image_cache_action');
+            $cache_dir = $this->get_image_cache_dir();
+            $files = glob(trailingslashit($cache_dir) . '*');
+            $deleted_count = 0;
+            if ($files) { foreach ($files as $file) { if (is_file($file)) { @unlink($file); $deleted_count++; } } }
+            if ($this->is_debug_logging_enabled()) { $this->log_debug('Manually cleared image cache: ' . $deleted_count . ' file(s) deleted.'); }
+            add_action('admin_notices', function() use ($deleted_count) {
+                /* translators: %d: number of cached image files that were deleted. */
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html(sprintf(__('Image cache cleared: %d file(s) deleted.', 'universal-news-feed'), $deleted_count)) . '</p></div>';
+            });
+        }
+    }
+
+    private function get_debug_log_path() {
+        $upload_dir = wp_upload_dir();
+        return trailingslashit($upload_dir['basedir']) . 'universal-news-feed-debug.log';
+    }
+
+    private function is_debug_logging_enabled() {
+        $options = get_option('lfn_settings');
+        return !empty($options['debug_logging_enabled']);
+    }
+
+    private function log_debug($message) {
+        if (!$this->is_debug_logging_enabled()) { return; }
+        $log_path = $this->get_debug_log_path();
+        if (!file_exists($log_path)) {
+            $htaccess_path = dirname($log_path) . '/.htaccess';
+            if (!file_exists($htaccess_path)) { @file_put_contents($htaccess_path, "Require all denied\n"); }
+        }
+        $timestamp = gmdate('Y-m-d H:i:s');
+        @file_put_contents($log_path, "[{$timestamp} UTC] {$message}" . PHP_EOL, FILE_APPEND | LOCK_EX);
+    }
+
+    private function cache_image_locally($image_url) {
+        if (empty($image_url)) { return ''; }
+        $debug = $this->is_debug_logging_enabled();
+        $cache_dir = $this->get_image_cache_dir();
+        $path_info = pathinfo(wp_parse_url($image_url, PHP_URL_PATH));
+        $ext = (isset($path_info['extension']) && preg_match('/^[a-zA-Z0-9]{2,4}$/', $path_info['extension'])) ? strtolower($path_info['extension']) : 'jpg';
+        $local_filename = md5($image_url) . '.' . $ext;
+        $local_path = trailingslashit($cache_dir) . $local_filename;
+        $local_url = trailingslashit($this->get_image_cache_url()) . $local_filename;
+
+        if (file_exists($local_path)) { if ($debug) { $this->log_debug('Already cached, skipping download: ' . $image_url); } return $local_url; }
+
+        if ($debug && !wp_is_writable($cache_dir)) { $this->log_debug('Cache directory is not writable: ' . $cache_dir); }
+
+        $response = wp_remote_get($image_url, [ 'timeout' => 10, 'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' ]);
+        if (is_wp_error($response)) { if ($debug) { $this->log_debug('Image download failed for ' . $image_url . ': ' . $response->get_error_message()); } return ''; }
+        $status_code = wp_remote_retrieve_response_code($response);
+        if ($status_code !== 200) { if ($debug) { $this->log_debug('Image download got HTTP ' . $status_code . ' for ' . $image_url); } return ''; }
+        $content_type = wp_remote_retrieve_header($response, 'content-type');
+        if ($content_type && strpos($content_type, 'image/') !== 0) { if ($debug) { $this->log_debug('Rejected non-image content-type "' . $content_type . '" for ' . $image_url); } return ''; }
+        $body = wp_remote_retrieve_body($response);
+        if (empty($body)) { if ($debug) { $this->log_debug('Empty response body for ' . $image_url); } return ''; }
+
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) { require_once(ABSPATH . '/wp-admin/includes/file.php'); WP_Filesystem(); }
+        $written = $wp_filesystem->put_contents($local_path, $body, FS_CHMOD_FILE);
+        if ($debug) { $this->log_debug($written ? 'Cached image saved: ' . $local_path : 'Failed to write cached image: ' . $local_path); }
+        return $written ? $local_url : '';
+    }
+
+    // Removes cached image files that are no longer referenced by the current feed data,
+    // so the cache folder stays bounded to roughly the number of articles currently live
+    // across all feeds, rather than growing forever.
+    private function garbage_collect_image_cache($all_news) {
+        $cache_dir = $this->get_image_cache_dir();
+        $cache_url = $this->get_image_cache_url();
+        $used_filenames = [];
+        foreach ($all_news as $item) {
+            if (!empty($item['thumbnail']) && strpos($item['thumbnail'], $cache_url) === 0) {
+                $used_filenames[basename($item['thumbnail'])] = true;
+            }
+        }
+        $existing_files = glob(trailingslashit($cache_dir) . '*');
+        $deleted_count = 0;
+        if ($existing_files) {
+            foreach ($existing_files as $file) {
+                if (is_file($file) && !isset($used_filenames[basename($file)])) { @unlink($file); $deleted_count++; }
+            }
+        }
+        if ($this->is_debug_logging_enabled() && $deleted_count > 0) { $this->log_debug('Garbage collection removed ' . $deleted_count . ' stale cached image(s).'); }
+    }
+
     public function fetch_and_cache_news_data($options_to_use = null) {
         include_once(ABSPATH . WPINC . '/feed.php');
+        $debug = $this->is_debug_logging_enabled();
         $current_options = is_array($options_to_use) ? $options_to_use : get_option('lfn_settings');
         $rssFeeds = isset($current_options['rss_feeds']) ? $current_options['rss_feeds'] : [];
         $frequency = isset($current_options['update_frequency']) ? $current_options['update_frequency'] : 'hourly';
         $cache_expiration = $this->get_cache_expiration_seconds($frequency);
-        if (empty($rssFeeds)) { set_transient('universal_news_feed_data', [], $cache_expiration); return; }
+        if ($debug) { $this->log_debug('--- Fetch cycle started: ' . count($rssFeeds) . ' feed(s) configured ---'); }
+        if (empty($rssFeeds)) { if ($debug) { $this->log_debug('No feeds configured, nothing to fetch.'); } set_transient('universal_news_feed_data', [], $cache_expiration); return; }
         $all_news = [];
         foreach ($rssFeeds as $feed) {
             $items = null;
+            if ($debug) { $this->log_debug('Fetching "' . $feed['name'] . '" via hybrid (rss2json): ' . $feed['url']); }
             // Always try the external service first for richer image data; the internal
             // parser below runs automatically as a fallback if this doesn't return results.
             $response = wp_remote_get('https://api.rss2json.com/v1/api.json?rss_url=' . urlencode($feed['url']), ['timeout' => 20]);
-            if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) { $data = json_decode(wp_remote_retrieve_body($response), true); if ($data && $data['status'] === 'ok') { $items = $data['items']; foreach ($items as &$item) { $has_enclosure_image = !empty($item['enclosure']['link']) && !empty($item['enclosure']['type']) && strpos($item['enclosure']['type'], 'image') === 0; if (empty($item['thumbnail']) && !$has_enclosure_image) { $html_to_scan = !empty($item['content']) ? $item['content'] : (isset($item['description']) ? $item['description'] : ''); $found_image = $this->extract_first_image_url($html_to_scan); if (!$found_image && !empty($item['link'])) { $found_image = $this->fetch_og_image($item['link']); } if ($found_image) { $item['thumbnail'] = $found_image; } } } unset($item); } }
+            if (is_wp_error($response)) { if ($debug) { $this->log_debug('rss2json request failed for "' . $feed['name'] . '": ' . $response->get_error_message()); } }
+            elseif (wp_remote_retrieve_response_code($response) !== 200) { if ($debug) { $this->log_debug('rss2json returned HTTP ' . wp_remote_retrieve_response_code($response) . ' for "' . $feed['name'] . '"'); } }
+            if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) { $data = json_decode(wp_remote_retrieve_body($response), true); if ($data && $data['status'] === 'ok') { $items = $data['items']; if ($debug) { $this->log_debug('rss2json returned ' . count($items) . ' item(s) for "' . $feed['name'] . '"'); } foreach ($items as &$item) { $has_enclosure_image = !empty($item['enclosure']['link']) && !empty($item['enclosure']['type']) && strpos($item['enclosure']['type'], 'image') === 0; if (empty($item['thumbnail']) && !$has_enclosure_image) { $html_to_scan = !empty($item['content']) ? $item['content'] : (isset($item['description']) ? $item['description'] : ''); $found_image = $this->extract_first_image_url($html_to_scan); if (!$found_image && !empty($item['link'])) { if ($debug) { $this->log_debug('No image in feed data for "' . $item['title'] . '", trying og:image fallback'); } $found_image = $this->fetch_og_image($item['link']); } if ($found_image) { $item['thumbnail'] = $found_image; } elseif ($debug) { $this->log_debug('No image found anywhere for "' . $item['title'] . '" — will use placeholder.'); } } } unset($item); } elseif ($debug) { $this->log_debug('rss2json status was not "ok" for "' . $feed['name'] . '"'); } }
             if (is_null($items)) {
+                if ($debug) { $this->log_debug('Falling back to internal fetcher for "' . $feed['name'] . '"'); }
                 $rss = fetch_feed($feed['url']);
+                if (is_wp_error($rss)) { if ($debug) { $this->log_debug('Internal fetcher failed for "' . $feed['name'] . '": ' . $rss->get_error_message()); } }
                 if (!is_wp_error($rss)) {
                     $items = [];
                     foreach ($rss->get_items(20) as $item) {
@@ -164,14 +318,19 @@ class Universal_News_Feed_Plugin {
                         else { $media_tags = $item->get_item_tags('http://search.yahoo.com/mrss/', 'content'); if ($media_tags && isset($media_tags[0]['attribs']['']['url'])) { $thumbnail = $media_tags[0]['attribs']['']['url']; } }
                         if (empty($thumbnail)) { $full_content = $item->get_content(); $thumbnail = $this->extract_first_image_url($full_content); }
                         if (empty($thumbnail)) { $thumbnail = $this->extract_first_image_url($item->get_description()); }
-                        if (empty($thumbnail)) { $thumbnail = $this->fetch_og_image($item->get_permalink()); }
+                        if (empty($thumbnail)) { if ($debug) { $this->log_debug('No image in internal feed data for "' . $item->get_title() . '", trying og:image fallback'); } $thumbnail = $this->fetch_og_image($item->get_permalink()); }
+                        if (empty($thumbnail) && $debug) { $this->log_debug('No image found anywhere for "' . $item->get_title() . '" — will use placeholder.'); }
                         $items[] = [ 'title' => $item->get_title(), 'pubDate' => $item->get_date('Y-m-d H:i:s'), 'link' => $item->get_permalink(), 'description' => $item->get_description(), 'thumbnail' => $thumbnail, 'enclosure' => [], ];
                     }
+                    if ($debug) { $this->log_debug('Internal fetcher returned ' . count($items) . ' item(s) for "' . $feed['name'] . '"'); }
                 }
             }
-            if (!is_null($items)) { $processed_items = []; foreach($items as $item) { $item['sourceName'] = $feed['name']; $processed_items[] = $item; } $all_news = array_merge($all_news, $processed_items); }
+            if (is_null($items) && $debug) { $this->log_debug('Both hybrid and internal fetch failed for "' . $feed['name'] . '" — no items retrieved.'); }
+            if (!is_null($items)) { $processed_items = []; foreach($items as $item) { $item['sourceName'] = $feed['name']; $image_to_cache = !empty($item['thumbnail']) ? $item['thumbnail'] : (!empty($item['enclosure']['link']) ? html_entity_decode($item['enclosure']['link']) : ''); if (!empty($image_to_cache)) { if ($debug && empty($item['thumbnail'])) { $this->log_debug('Image found only in enclosure field for "' . $item['title'] . '", caching that instead: ' . $image_to_cache); } $cached_url = $this->cache_image_locally($image_to_cache); if ($cached_url) { $item['thumbnail'] = $cached_url; } } $processed_items[] = $item; } $all_news = array_merge($all_news, $processed_items); }
         }
         usort($all_news, function($a, $b) { return strtotime($b['pubDate']) - strtotime($a['pubDate']); });
+        if ($debug) { $this->log_debug('--- Fetch cycle finished: ' . count($all_news) . ' total item(s) across all feeds ---'); }
+        $this->garbage_collect_image_cache($all_news);
         set_transient('universal_news_feed_data', $all_news, $cache_expiration);
         update_option('lfn_last_update_timestamp', time());
     }
