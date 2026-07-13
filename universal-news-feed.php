@@ -177,13 +177,16 @@ class Universal_News_Feed_Plugin {
     private function read_debug_log_tail() {
         $path = $this->get_debug_log_path();
         if (!file_exists($path)) { return ''; }
-        $max_bytes = 200 * 1024; // Cap what we read/display to 200KB, most recent entries.
-        $size = filesize($path);
-        $handle = fopen($path, 'r');
-        if (!$handle) { return ''; }
-        if ($size > $max_bytes) { fseek($handle, -$max_bytes, SEEK_END); fgets($handle); } // drop partial first line
-        $content = stream_get_contents($handle);
-        fclose($handle);
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) { require_once(ABSPATH . '/wp-admin/includes/file.php'); WP_Filesystem(); }
+        $content = $wp_filesystem->get_contents($path);
+        if ($content === false) { return ''; }
+        $max_bytes = 200 * 1024; // Cap what we display to the most recent 200KB.
+        if (strlen($content) > $max_bytes) {
+            $content = substr($content, -$max_bytes);
+            $first_newline = strpos($content, "\n");
+            if ($first_newline !== false) { $content = substr($content, $first_newline + 1); } // drop partial first line
+        }
         return $content;
     }
 
@@ -191,7 +194,7 @@ class Universal_News_Feed_Plugin {
         if (isset($_POST['lfn_clear_debug_log_submit']) && current_user_can('manage_options')) {
             check_admin_referer('lfn_clear_debug_log_action');
             $path = $this->get_debug_log_path();
-            if (file_exists($path)) { @unlink($path); }
+            if (file_exists($path)) { wp_delete_file($path); }
             add_action('admin_notices', function() { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Debug log cleared.', 'universal-news-feed') . '</p></div>'; });
         }
     }
@@ -202,7 +205,7 @@ class Universal_News_Feed_Plugin {
             $cache_dir = $this->get_image_cache_dir();
             $files = glob(trailingslashit($cache_dir) . '*');
             $deleted_count = 0;
-            if ($files) { foreach ($files as $file) { if (is_file($file)) { @unlink($file); $deleted_count++; } } }
+            if ($files) { foreach ($files as $file) { if (is_file($file)) { wp_delete_file($file); $deleted_count++; } } }
             if ($this->is_debug_logging_enabled()) { $this->log_debug('Manually cleared image cache: ' . $deleted_count . ' file(s) deleted.'); }
             add_action('admin_notices', function() use ($deleted_count) {
                 /* translators: %d: number of cached image files that were deleted. */
@@ -278,7 +281,7 @@ class Universal_News_Feed_Plugin {
         $deleted_count = 0;
         if ($existing_files) {
             foreach ($existing_files as $file) {
-                if (is_file($file) && !isset($used_filenames[basename($file)])) { @unlink($file); $deleted_count++; }
+                if (is_file($file) && !isset($used_filenames[basename($file)])) { wp_delete_file($file); $deleted_count++; }
             }
         }
         if ($this->is_debug_logging_enabled() && $deleted_count > 0) { $this->log_debug('Garbage collection removed ' . $deleted_count . ' stale cached image(s).'); }
