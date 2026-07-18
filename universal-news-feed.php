@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Universal News Feed
  * Description:       A configurable, resilient plugin to display a cached news feed from any RSS sources via a shortcode.
- * Version:           2.2
+ * Version:           2.5
  * Author:            Pashalis Laoutaris
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -82,7 +82,64 @@ class Universal_News_Feed_Plugin {
     public function render_placeholders_field() { $options = get_option('lfn_settings'); ?><div id="lfn-placeholders-container"><p class="description"><?php esc_html_e('Select images from your Media Library.', 'universal-news-feed'); ?></p><?php $placeholders = isset($options['placeholders']) ? $options['placeholders'] : []; if(!empty($placeholders)){foreach($placeholders as $index=>$url){?><div class="lfn-placeholder-item"><img src="<?php echo esc_url($url);?>"/><input type="hidden" name="lfn_settings[placeholders][]" value="<?php echo esc_url($url);?>"><button type="button" class="button lfn-remove-placeholder"><?php esc_html_e('Remove', 'universal-news-feed');?></button></div><?php }}?></div><button type="button" class="button" id="lfn-add-placeholder"><?php esc_html_e('Add Placeholder Image', 'universal-news-feed'); ?></button><style> .lfn-feed-row{margin-bottom:10px;} #lfn-placeholders-container{display:flex;flex-wrap:wrap;gap:15px;} .lfn-placeholder-item{position:relative;} .lfn-placeholder-item img{width:100px;height:100px;object-fit:cover;border:1px solid #ddd;} .lfn-placeholder-item button{position:absolute;top:5px;right:5px;} </style><?php }
     public function enqueue_admin_assets($hook) { if ($hook !== 'settings_page_universal_news_feed_settings') { return; } wp_enqueue_media(); wp_enqueue_style('wp-color-picker'); wp_enqueue_script('lfn-admin-script', plugin_dir_url(__FILE__) . 'admin-scripts.js', ['jquery', 'wp-color-picker'], '2.2', true); }
     public function sanitize_settings($input) { $old_options = get_option('lfn_settings', []); $new_input = $input; $merged_input = array_merge($old_options, $new_input); $sanitized_input = []; $schedules = wp_get_schedules(); if(isset($merged_input['update_frequency']) && array_key_exists($merged_input['update_frequency'], $schedules)) { if(!isset($old_options['update_frequency']) || $old_options['update_frequency'] !== $merged_input['update_frequency']) { $this->reschedule_cron_job($merged_input['update_frequency']); } $sanitized_input['update_frequency'] = $merged_input['update_frequency']; } if(isset($merged_input['feed_title'])) { $sanitized_input['feed_title'] = sanitize_text_field($merged_input['feed_title']); } $sanitized_input['load_more_enabled'] = isset($merged_input['load_more_enabled'])?1:0; $sanitized_input['debug_logging_enabled'] = isset($merged_input['debug_logging_enabled'])?1:0; if(isset($merged_input['items_per_page'])){$items=absint($merged_input['items_per_page']);$sanitized_input['items_per_page']=($items>0)?$items:8;} if(isset($merged_input['shortcode_tag'])){$tag=sanitize_key($merged_input['shortcode_tag']);$sanitized_input['shortcode_tag']=!empty($tag)?$tag:'latest-news-feed';} if(isset($merged_input['layout'])){$sanitized_input['layout']=in_array($merged_input['layout'],['list','grid'])?$merged_input['layout']:'list';} if(isset($merged_input['title_color'])){$sanitized_input['title_color']=sanitize_hex_color($merged_input['title_color']);} if(isset($merged_input['source_color'])){$sanitized_input['source_color']=sanitize_hex_color($merged_input['source_color']);} if(isset($merged_input['custom_css'])){$sanitized_input['custom_css']=sanitize_textarea_field($merged_input['custom_css']);} if(isset($merged_input['rss_feeds'])){$sanitized_input['rss_feeds']=[];foreach($merged_input['rss_feeds'] as $feed){if(!empty(trim($feed['name']))&&!empty(trim($feed['url']))){$sanitized_input['rss_feeds'][]=['name'=>sanitize_text_field($feed['name']),'url'=>esc_url_raw($feed['url'])];}}} if(isset($merged_input['placeholders'])){$sanitized_input['placeholders']=array_map('esc_url_raw',$merged_input['placeholders']);}elseif(array_key_exists('placeholders',$input)){$sanitized_input['placeholders']=[];} wp_cache_flush(); if(class_exists('LiteSpeed_Cache_API')){LiteSpeed_Cache_API::purge_all();} wp_schedule_single_event(time(), 'unf_fetch_news_hook'); return $sanitized_input; }
-    public function enqueue_public_assets() { $options = get_option('lfn_settings'); $title_color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; $source_color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; $custom_css = isset($options['custom_css']) ? $options['custom_css'] : ''; $dynamic_css = ":root { --lfn-title-color: " . esc_attr($title_color) . "; --lfn-source-color: " . esc_attr($source_color) . "; }"; $dynamic_css .= $custom_css; wp_add_inline_style('universal-news-feed-style', $dynamic_css); wp_enqueue_style('universal-news-feed-style', plugin_dir_url(__FILE__) . 'universal-news-feed.css', [], '2.2'); wp_enqueue_script('universal-news-feed-script', plugin_dir_url(__FILE__) . 'universal-news-feed.js', [], '2.2', true); }
+    public function enqueue_public_assets() { $options = get_option('lfn_settings'); $title_color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; $source_color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; $custom_css = isset($options['custom_css']) ? $options['custom_css'] : ''; $dynamic_css = ":root { --lfn-title-color: " . esc_attr($title_color) . "; --lfn-source-color: " . esc_attr($source_color) . "; } .news-item.lfn-hidden { display: none !important; }"; $dynamic_css .= $custom_css; wp_enqueue_style('universal-news-feed-style', plugin_dir_url(__FILE__) . 'universal-news-feed.css', [], '2.5'); wp_add_inline_style('universal-news-feed-style', $dynamic_css); wp_enqueue_script('universal-news-feed-script', plugin_dir_url(__FILE__) . 'universal-news-feed.js', [], '2.5', true); }
+    // Renders one news item as real, crawlable HTML (mirrors the markup the old
+    // client-side JS used to build in the browser). $hidden marks items beyond the
+    // first page when "Load More" is enabled; they stay in the HTML (so search
+    // engines and other non-JS clients still see them) but are CSS-hidden until
+    // the visitor clicks "Load More".
+    private function render_news_item_html($news, $placeholder_urls, $hidden = false) {
+        $title = !empty($news['title']) ? $news['title'] : __('No Title', 'universal-news-feed');
+        $link = !empty($news['link']) ? $news['link'] : '#';
+        $link = ($link === '#' || wp_http_validate_url($link)) ? $link : '#';
+        $source_name = !empty($news['sourceName']) ? $news['sourceName'] : __('Unknown', 'universal-news-feed');
+
+        $image_url = '';
+        $is_placeholder = false;
+        if (!empty($news['thumbnail'])) {
+            $image_url = $news['thumbnail'];
+        } elseif (!empty($news['enclosure']['link']) && !empty($news['enclosure']['type']) && strpos($news['enclosure']['type'], 'image') === 0) {
+            $image_url = $news['enclosure']['link'];
+        }
+        if ($image_url && !wp_http_validate_url($image_url)) { $image_url = ''; }
+        if (empty($image_url) && !empty($placeholder_urls)) {
+            $image_url = $placeholder_urls[array_rand($placeholder_urls)];
+            $is_placeholder = true;
+        }
+
+        $description = wp_strip_all_tags(isset($news['description']) ? $news['description'] : '');
+        $description = mb_strlen($description) > 140 ? mb_substr($description, 0, 140) . '...' : $description;
+
+        $date_string = __('Date not available', 'universal-news-feed');
+        if (!empty($news['pubDate'])) {
+            $timestamp = strtotime($news['pubDate']);
+            if ($timestamp) { $date_string = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $timestamp); }
+        }
+
+        $item_class = 'news-item visible' . ($hidden ? ' lfn-hidden' : '');
+        ob_start();
+        ?><div class="<?php echo esc_attr($item_class); ?>">
+            <?php if ($image_url) : ?>
+            <div class="news-image-container">
+                <a href="<?php echo esc_url($link); ?>" target="_blank" rel="nofollow noopener noreferrer" tabindex="-1" aria-hidden="true">
+                    <img src="<?php echo esc_url($image_url); ?>" alt="<?php echo esc_attr(mb_substr($title, 0, 50)); ?>" class="news-image<?php echo $is_placeholder ? ' is-placeholder' : ''; ?>" loading="lazy">
+                </a>
+            </div>
+            <?php endif; ?>
+            <div class="news-content">
+                <div>
+                    <div class="news-source"><?php echo esc_html__('From:', 'universal-news-feed'); ?> <?php echo esc_html($source_name); ?></div>
+                    <div class="news-title"><a href="<?php echo esc_url($link); ?>" target="_blank" rel="nofollow noopener noreferrer"><?php echo esc_html($title); ?></a></div>
+                    <p class="news-description"><?php echo esc_html($description); ?></p>
+                </div>
+                <div class="news-footer">
+                    <span class="news-date"><?php echo esc_html($date_string); ?></span>
+                </div>
+            </div>
+        </div><?php
+        return ob_get_clean();
+    }
+
     public function render_shortcode($atts = []) {
         $atts = shortcode_atts(['source' => ''], $atts, $this->shortcode_tag);
         $options = get_option('lfn_settings');
@@ -91,31 +148,60 @@ class Universal_News_Feed_Plugin {
         $all_items = get_transient('universal_news_feed_data') ?: [];
 
         if (!empty(trim($atts['source']))) {
-            $wanted_sources = array_map('strtolower', array_map('trim', explode(',', $atts['source'])));
+            $source_names = array_map('trim', explode(',', $atts['source']));
+            $wanted_sources = array_map('strtolower', $source_names);
             $all_items = array_values(array_filter($all_items, function($item) use ($wanted_sources) {
                 return isset($item['sourceName']) && in_array(strtolower($item['sourceName']), $wanted_sources, true);
             }));
+            /* translators: 1: base feed title (e.g. "Latest News"), 2: comma-separated source name(s) this shortcode instance is filtered to. */
+            $title = sprintf(__('%1$s from %2$s', 'universal-news-feed'), $title, implode(', ', $source_names));
         }
 
-        $instance_data = [
-            'posts' => $all_items,
-            'placeholders' => isset($options['placeholders']) ? $options['placeholders'] : [],
-            'load_more_enabled' => isset($options['load_more_enabled']) ? $options['load_more_enabled'] : 1,
-            'items_per_page' => isset($options['items_per_page']) ? $options['items_per_page'] : 8,
-            'i18n' => [
-                'no_title' => __('No Title', 'universal-news-feed'),
-                'unknown_source' => __('Unknown', 'universal-news-feed'),
-                'from_prefix' => __('From:', 'universal-news-feed'),
-                'date_not_available' => __('Date not available', 'universal-news-feed'),
-                'load_more' => __('Load More News', 'universal-news-feed'),
-                'no_news_available' => __('No news available.', 'universal-news-feed'),
-                'unable_to_load' => __('Unable to load news.', 'universal-news-feed'),
-            ],
-        ];
+        $placeholders = isset($options['placeholders']) ? $options['placeholders'] : [];
+        $load_more_enabled = isset($options['load_more_enabled']) ? (bool) $options['load_more_enabled'] : true;
+        $items_per_page = isset($options['items_per_page']) ? absint($options['items_per_page']) : 8;
+        if ($items_per_page < 1) { $items_per_page = 8; }
         $json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+        $instance_id = 'lfn-' . substr(md5(wp_json_encode($atts) . microtime()), 0, 10);
 
         ob_start();
-        ?><div class="lfn-container lfn-layout-<?php echo esc_attr($layout); ?>"><h2><?php echo esc_html($title); ?></h2><div class="lfn-loading"><?php esc_html_e('Loading news...', 'universal-news-feed'); ?></div><div class="lfn-feed"></div><div class="lfn-load-more-container"></div><script type="application/json" class="lfn-data"><?php echo wp_json_encode($instance_data, $json_flags); ?></script></div><?php
+        ?><div id="<?php echo esc_attr($instance_id); ?>" class="lfn-container lfn-layout-<?php echo esc_attr($layout); ?>" data-placeholders="<?php echo esc_attr(wp_json_encode($placeholders, $json_flags)); ?>">
+            <h2><?php echo esc_html($title); ?></h2>
+            <?php if (empty($all_items)) : ?>
+                <div class="lfn-loading"><?php esc_html_e('No news available.', 'universal-news-feed'); ?></div>
+            <?php else : ?>
+                <div class="lfn-feed">
+                    <?php foreach ($all_items as $i => $news) :
+                        $hidden = $load_more_enabled && $i >= $items_per_page;
+                        echo $this->render_news_item_html($news, $placeholders, $hidden); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped inside render_news_item_html
+                    endforeach; ?>
+                </div>
+                <?php if ($load_more_enabled && count($all_items) > $items_per_page) : ?>
+                <div class="lfn-load-more-container">
+                    <button type="button" class="load-more-btn" data-items-per-page="<?php echo esc_attr($items_per_page); ?>"><?php esc_html_e('Load More News', 'universal-news-feed'); ?></button>
+                </div>
+                <script>
+                (function(){
+                    var root = document.getElementById(<?php echo wp_json_encode($instance_id); ?>);
+                    if (!root) { return; }
+                    var btn = root.querySelector('.load-more-btn');
+                    if (!btn) { return; }
+                    btn.addEventListener('click', function(){
+                        var perPage = parseInt(btn.getAttribute('data-items-per-page'), 10) || 8;
+                        var hidden = root.querySelectorAll('.news-item.lfn-hidden');
+                        for (var i = 0; i < perPage && i < hidden.length; i++) {
+                            hidden[i].classList.remove('lfn-hidden');
+                            hidden[i].classList.add('visible');
+                        }
+                        if (root.querySelectorAll('.news-item.lfn-hidden').length === 0) {
+                            btn.parentNode.innerHTML = '';
+                        }
+                    });
+                })();
+                </script>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div><?php
         return ob_get_clean();
     }
     public function reschedule_cron_job($new_frequency = null) { $timestamp = wp_next_scheduled('unf_fetch_news_hook'); if ($timestamp) { wp_unschedule_event($timestamp, 'unf_fetch_news_hook'); } $options = get_option('lfn_settings'); $frequency = $new_frequency ? $new_frequency : (isset($options['update_frequency']) ? $options['update_frequency'] : 'hourly'); wp_schedule_event(time(), $frequency, 'unf_fetch_news_hook'); }

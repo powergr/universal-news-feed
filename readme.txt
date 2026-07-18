@@ -4,7 +4,7 @@ Tags: rss, news feed, aggregator, shortcode
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.2
+Stable tag: 2.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,15 @@ Yes. Use the `source` attribute on the shortcode with the exact Source Name you 
 By default, hourly. This can be changed to twice daily or daily under Settings > Universal News Feed > Advanced. You can also trigger an immediate refresh with the "Force Refresh Now" button on the settings screen.
 
 == Changelog ==
+
+= 2.5 =
+Added an explicit hover/focus color for the "Load More News" button (a darker shade of the same blue) so it no longer falls back to a washed-out default state on hover.
+
+= 2.4 =
+The item-hiding CSS rule (for "Items Per Page") is now printed as inline CSS directly in the page head, and the "Load More" button's click handler is now a small inline script printed directly next to it in the shortcode output — both immune to any CDN, page cache, or asset-minification setup serving a stale copy of the plugin's external .css/.js files, which was preventing "Items Per Page" and "Load More" from working on some hosts even after those files were updated.
+
+= 2.3 =
+News items are now rendered as real HTML directly in the page source (server-side), instead of being built by JavaScript from a JSON blob after the page loads — this makes the feed visible to search engines and other crawlers that don't execute JavaScript. Also bumped the enqueued asset version so caches pick up the updated CSS/JS instead of serving stale copies, and the feed heading now appends the filtered source name(s) when the shortcode's `source` attribute is used, e.g. "Latest News from WWD".
 
 = 2.2 =
 Version 2.2 expands the debug logging introduced in 2.1 to cover the entire fetch pipeline, not just local image caching: it now logs which feed is being fetched, whether the external service or internal parser was used, how many items each feed returned, every attempt to find an og:image fallback (including the exact HTTP status or error returned), and a clear summary when no image could be found anywhere for an article. This logging traced a real bug: Business of Fashion's feed data stores its image in a different field (enclosure) than most other sources (thumbnail), which meant BOF's images were silently skipping the caching system entirely and hotlinking directly to BOF's CDN — the fix now checks both fields, so BOF images get cached and served locally like everything else. Separately, the Debug Log tab gained a "Clear Image Cache" button, so cached images can be wiped from the WordPress admin directly, without needing server/SSH access.

@@ -32,6 +32,9 @@
   opacity: 1;
   transform: translateY(0);
 }
+.news-item.lfn-hidden {
+  display: none;
+}
 
 /* --- NEW: Add a background color to the image container for a professional look --- */
 .news-image-container {
@@ -93,6 +96,12 @@
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.load-more-btn:hover,
+.load-more-btn:focus-visible {
+  background-color: #145dbf;
+  color: white;
 }
 .lfn-layout-list .news-item {
   display: flex;
