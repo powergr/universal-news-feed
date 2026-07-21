@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Universal News Feed
  * Description:       A configurable, resilient plugin to display a cached news feed from any RSS sources via a shortcode.
- * Version:           2.5
+ * Version:           2.7
  * Author:            Pashalis Laoutaris
  * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
@@ -78,11 +78,11 @@ class Universal_News_Feed_Plugin {
     public function render_title_color_field() { $options = get_option('lfn_settings'); $color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; echo '<input type="text" name="lfn_settings[title_color]" value="' . esc_attr($color) . '" class="lfn-color-picker">'; }
     public function render_source_color_field() { $options = get_option('lfn_settings'); $color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; echo '<input type="text" name="lfn_settings[source_color]" value="' . esc_attr($color) . '" class="lfn-color-picker">'; }
     public function render_custom_css_field() { $options = get_option('lfn_settings'); $css = isset($options['custom_css']) ? $options['custom_css'] : ''; echo '<textarea name="lfn_settings[custom_css]" rows="8" cols="50" class="large-text code">' . esc_textarea($css) . '</textarea><p class="description"><strong>' . esc_html__('How to use Custom CSS:', 'universal-news-feed') . '</strong><br>' . esc_html__('Key Classes:', 'universal-news-feed') . ' <code>.lfn-container</code>, <code>.news-item</code>, <code>.news-title a</code></p>'; }
-    public function render_feeds_field() { $options = get_option('lfn_settings'); ?><div id="lfn-feeds-container"><p class="description"><?php esc_html_e('Add the name and URL for each RSS feed source.', 'universal-news-feed'); ?></p><?php $feeds = isset($options['rss_feeds']) ? $options['rss_feeds'] : []; if(!empty($feeds)){foreach($feeds as $index=>$feed){?><div class="lfn-feed-row"><input type="text" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][name]" value="<?php echo esc_attr($feed['name']);?>" placeholder="<?php esc_attr_e('Source Name', 'universal-news-feed');?>" size="30"/><input type="url" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][url]" value="<?php echo esc_attr($feed['url']);?>" placeholder="<?php esc_attr_e('RSS Feed URL', 'universal-news-feed');?>" size="50"/><button type="button" class="button lfn-remove-feed"><?php esc_html_e('Remove', 'universal-news-feed'); ?></button></div><?php }}?></div><button type="button" class="button" id="lfn-add-feed"><?php esc_html_e('Add Feed', 'universal-news-feed'); ?></button><?php }
+    public function render_feeds_field() { $options = get_option('lfn_settings'); ?><div id="lfn-feeds-container"><p class="description"><?php esc_html_e('Add the name and URL for each RSS feed source. "Keywords" is optional: if set, only articles whose title or description contain at least one of the comma-separated keywords are kept — useful for broad feeds (e.g. a general "Style" section) that mix in off-topic content.', 'universal-news-feed'); ?></p><?php $feeds = isset($options['rss_feeds']) ? $options['rss_feeds'] : []; if(!empty($feeds)){foreach($feeds as $index=>$feed){?><div class="lfn-feed-row"><input type="text" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][name]" value="<?php echo esc_attr($feed['name']);?>" placeholder="<?php esc_attr_e('Source Name', 'universal-news-feed');?>" size="30"/><input type="url" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][url]" value="<?php echo esc_attr($feed['url']);?>" placeholder="<?php esc_attr_e('RSS Feed URL', 'universal-news-feed');?>" size="50"/><input type="text" name="lfn_settings[rss_feeds][<?php echo absint($index);?>][keywords]" value="<?php echo esc_attr(isset($feed['keywords']) ? $feed['keywords'] : '');?>" placeholder="<?php esc_attr_e('Keywords (optional), e.g. fashion, style, designer', 'universal-news-feed');?>" size="35"/><button type="button" class="button lfn-remove-feed"><?php esc_html_e('Remove', 'universal-news-feed'); ?></button></div><?php }}?></div><button type="button" class="button" id="lfn-add-feed"><?php esc_html_e('Add Feed', 'universal-news-feed'); ?></button><?php }
     public function render_placeholders_field() { $options = get_option('lfn_settings'); ?><div id="lfn-placeholders-container"><p class="description"><?php esc_html_e('Select images from your Media Library.', 'universal-news-feed'); ?></p><?php $placeholders = isset($options['placeholders']) ? $options['placeholders'] : []; if(!empty($placeholders)){foreach($placeholders as $index=>$url){?><div class="lfn-placeholder-item"><img src="<?php echo esc_url($url);?>"/><input type="hidden" name="lfn_settings[placeholders][]" value="<?php echo esc_url($url);?>"><button type="button" class="button lfn-remove-placeholder"><?php esc_html_e('Remove', 'universal-news-feed');?></button></div><?php }}?></div><button type="button" class="button" id="lfn-add-placeholder"><?php esc_html_e('Add Placeholder Image', 'universal-news-feed'); ?></button><style> .lfn-feed-row{margin-bottom:10px;} #lfn-placeholders-container{display:flex;flex-wrap:wrap;gap:15px;} .lfn-placeholder-item{position:relative;} .lfn-placeholder-item img{width:100px;height:100px;object-fit:cover;border:1px solid #ddd;} .lfn-placeholder-item button{position:absolute;top:5px;right:5px;} </style><?php }
     public function enqueue_admin_assets($hook) { if ($hook !== 'settings_page_universal_news_feed_settings') { return; } wp_enqueue_media(); wp_enqueue_style('wp-color-picker'); wp_enqueue_script('lfn-admin-script', plugin_dir_url(__FILE__) . 'admin-scripts.js', ['jquery', 'wp-color-picker'], '2.2', true); }
-    public function sanitize_settings($input) { $old_options = get_option('lfn_settings', []); $new_input = $input; $merged_input = array_merge($old_options, $new_input); $sanitized_input = []; $schedules = wp_get_schedules(); if(isset($merged_input['update_frequency']) && array_key_exists($merged_input['update_frequency'], $schedules)) { if(!isset($old_options['update_frequency']) || $old_options['update_frequency'] !== $merged_input['update_frequency']) { $this->reschedule_cron_job($merged_input['update_frequency']); } $sanitized_input['update_frequency'] = $merged_input['update_frequency']; } if(isset($merged_input['feed_title'])) { $sanitized_input['feed_title'] = sanitize_text_field($merged_input['feed_title']); } $sanitized_input['load_more_enabled'] = isset($merged_input['load_more_enabled'])?1:0; $sanitized_input['debug_logging_enabled'] = isset($merged_input['debug_logging_enabled'])?1:0; if(isset($merged_input['items_per_page'])){$items=absint($merged_input['items_per_page']);$sanitized_input['items_per_page']=($items>0)?$items:8;} if(isset($merged_input['shortcode_tag'])){$tag=sanitize_key($merged_input['shortcode_tag']);$sanitized_input['shortcode_tag']=!empty($tag)?$tag:'latest-news-feed';} if(isset($merged_input['layout'])){$sanitized_input['layout']=in_array($merged_input['layout'],['list','grid'])?$merged_input['layout']:'list';} if(isset($merged_input['title_color'])){$sanitized_input['title_color']=sanitize_hex_color($merged_input['title_color']);} if(isset($merged_input['source_color'])){$sanitized_input['source_color']=sanitize_hex_color($merged_input['source_color']);} if(isset($merged_input['custom_css'])){$sanitized_input['custom_css']=sanitize_textarea_field($merged_input['custom_css']);} if(isset($merged_input['rss_feeds'])){$sanitized_input['rss_feeds']=[];foreach($merged_input['rss_feeds'] as $feed){if(!empty(trim($feed['name']))&&!empty(trim($feed['url']))){$sanitized_input['rss_feeds'][]=['name'=>sanitize_text_field($feed['name']),'url'=>esc_url_raw($feed['url'])];}}} if(isset($merged_input['placeholders'])){$sanitized_input['placeholders']=array_map('esc_url_raw',$merged_input['placeholders']);}elseif(array_key_exists('placeholders',$input)){$sanitized_input['placeholders']=[];} wp_cache_flush(); if(class_exists('LiteSpeed_Cache_API')){LiteSpeed_Cache_API::purge_all();} wp_schedule_single_event(time(), 'unf_fetch_news_hook'); return $sanitized_input; }
-    public function enqueue_public_assets() { $options = get_option('lfn_settings'); $title_color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; $source_color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; $custom_css = isset($options['custom_css']) ? $options['custom_css'] : ''; $dynamic_css = ":root { --lfn-title-color: " . esc_attr($title_color) . "; --lfn-source-color: " . esc_attr($source_color) . "; } .news-item.lfn-hidden { display: none !important; }"; $dynamic_css .= $custom_css; wp_enqueue_style('universal-news-feed-style', plugin_dir_url(__FILE__) . 'universal-news-feed.css', [], '2.5'); wp_add_inline_style('universal-news-feed-style', $dynamic_css); wp_enqueue_script('universal-news-feed-script', plugin_dir_url(__FILE__) . 'universal-news-feed.js', [], '2.5', true); }
+    public function sanitize_settings($input) { $old_options = get_option('lfn_settings', []); $new_input = $input; $merged_input = array_merge($old_options, $new_input); $sanitized_input = []; $schedules = wp_get_schedules(); if(isset($merged_input['update_frequency']) && array_key_exists($merged_input['update_frequency'], $schedules)) { if(!isset($old_options['update_frequency']) || $old_options['update_frequency'] !== $merged_input['update_frequency']) { $this->reschedule_cron_job($merged_input['update_frequency']); } $sanitized_input['update_frequency'] = $merged_input['update_frequency']; } if(isset($merged_input['feed_title'])) { $sanitized_input['feed_title'] = sanitize_text_field($merged_input['feed_title']); } $sanitized_input['load_more_enabled'] = isset($merged_input['load_more_enabled'])?1:0; $sanitized_input['debug_logging_enabled'] = isset($merged_input['debug_logging_enabled'])?1:0; if(isset($merged_input['items_per_page'])){$items=absint($merged_input['items_per_page']);$sanitized_input['items_per_page']=($items>0)?$items:8;} if(isset($merged_input['shortcode_tag'])){$tag=sanitize_key($merged_input['shortcode_tag']);$sanitized_input['shortcode_tag']=!empty($tag)?$tag:'latest-news-feed';} if(isset($merged_input['layout'])){$sanitized_input['layout']=in_array($merged_input['layout'],['list','grid'])?$merged_input['layout']:'list';} if(isset($merged_input['title_color'])){$sanitized_input['title_color']=sanitize_hex_color($merged_input['title_color']);} if(isset($merged_input['source_color'])){$sanitized_input['source_color']=sanitize_hex_color($merged_input['source_color']);} if(isset($merged_input['custom_css'])){$sanitized_input['custom_css']=sanitize_textarea_field($merged_input['custom_css']);} if(isset($merged_input['rss_feeds'])){$sanitized_input['rss_feeds']=[];foreach($merged_input['rss_feeds'] as $feed){if(!empty(trim($feed['name']))&&!empty(trim($feed['url']))){$sanitized_input['rss_feeds'][]=['name'=>sanitize_text_field($feed['name']),'url'=>esc_url_raw($feed['url']),'keywords'=>isset($feed['keywords'])?sanitize_text_field($feed['keywords']):''];}}} if(isset($merged_input['placeholders'])){$sanitized_input['placeholders']=array_map('esc_url_raw',$merged_input['placeholders']);}elseif(array_key_exists('placeholders',$input)){$sanitized_input['placeholders']=[];} wp_cache_flush(); if(class_exists('LiteSpeed_Cache_API')){LiteSpeed_Cache_API::purge_all();} wp_schedule_single_event(time(), 'unf_fetch_news_hook'); return $sanitized_input; }
+    public function enqueue_public_assets() { $options = get_option('lfn_settings'); $title_color = isset($options['title_color']) ? $options['title_color'] : '#1c1e21'; $source_color = isset($options['source_color']) ? $options['source_color'] : '#65676b'; $custom_css = isset($options['custom_css']) ? $options['custom_css'] : ''; $dynamic_css = ":root { --lfn-title-color: " . esc_attr($title_color) . "; --lfn-source-color: " . esc_attr($source_color) . "; } .news-item.lfn-hidden { display: none !important; }"; $dynamic_css .= $custom_css; wp_enqueue_style('universal-news-feed-style', plugin_dir_url(__FILE__) . 'universal-news-feed.css', [], '2.7'); wp_add_inline_style('universal-news-feed-style', $dynamic_css); wp_enqueue_script('universal-news-feed-script', plugin_dir_url(__FILE__) . 'universal-news-feed.js', [], '2.7', true); }
     // Renders one news item as real, crawlable HTML (mirrors the markup the old
     // client-side JS used to build in the browser). $hidden marks items beyond the
     // first page when "Load More" is enabled; they stay in the HTML (so search
@@ -345,11 +345,20 @@ class Universal_News_Feed_Plugin {
         $cache_dir = $this->get_image_cache_dir();
         $path_info = pathinfo(wp_parse_url($image_url, PHP_URL_PATH));
         $ext = (isset($path_info['extension']) && preg_match('/^[a-zA-Z0-9]{2,4}$/', $path_info['extension'])) ? strtolower($path_info['extension']) : 'jpg';
-        $local_filename = md5($image_url) . '.' . $ext;
-        $local_path = trailingslashit($cache_dir) . $local_filename;
-        $local_url = trailingslashit($this->get_image_cache_url()) . $local_filename;
+        $hash = md5($image_url);
 
-        if (file_exists($local_path)) { if ($debug) { $this->log_debug('Already cached, skipping download: ' . $image_url); } return $local_url; }
+        // Cache-hit check: an *animated* GIF is stored under its original .gif extension;
+        // everything else - including PNGs and static GIFs, which are lossless formats that
+        // are frequently much larger than a JPEG of the same photo needs to be - is
+        // re-encoded and stored as .jpg. We don't know which case applies until we've
+        // downloaded and inspected the file, so check both possible cache locations first.
+        foreach (array_unique([$ext, 'jpg']) as $candidate_ext) {
+            $candidate_path = trailingslashit($cache_dir) . $hash . '.' . $candidate_ext;
+            if (file_exists($candidate_path)) {
+                if ($debug) { $this->log_debug('Already cached, skipping download: ' . $image_url); }
+                return trailingslashit($this->get_image_cache_url()) . $hash . '.' . $candidate_ext;
+            }
+        }
 
         if ($debug && !wp_is_writable($cache_dir)) { $this->log_debug('Cache directory is not writable: ' . $cache_dir); }
 
@@ -364,9 +373,64 @@ class Universal_News_Feed_Plugin {
 
         global $wp_filesystem;
         if (empty($wp_filesystem)) { require_once(ABSPATH . '/wp-admin/includes/file.php'); WP_Filesystem(); }
-        $written = $wp_filesystem->put_contents($local_path, $body, FS_CHMOD_FILE);
-        if ($debug) { $this->log_debug($written ? 'Cached image saved: ' . $local_path : 'Failed to write cached image: ' . $local_path); }
-        return $written ? $local_url : '';
+
+        $tmp_file = wp_tempnam($image_url);
+        if (!$tmp_file || !$wp_filesystem->put_contents($tmp_file, $body, FS_CHMOD_FILE)) {
+            if ($debug) { $this->log_debug('Could not write temp file for ' . $image_url); }
+            return '';
+        }
+
+        // Animated GIFs are saved as-is so re-encoding doesn't destroy the animation.
+        if ($ext === 'gif' && $this->is_animated_gif($tmp_file)) {
+            wp_delete_file($tmp_file);
+            $local_path = trailingslashit($cache_dir) . $hash . '.gif';
+            $local_url = trailingslashit($this->get_image_cache_url()) . $hash . '.gif';
+            $written = $wp_filesystem->put_contents($local_path, $body, FS_CHMOD_FILE);
+            if ($debug) { $this->log_debug($written ? 'Cached animated GIF as-is: ' . $local_path : 'Failed to write cached image: ' . $local_path); }
+            return $written ? $local_url : '';
+        }
+
+        // Everything else - JPG, PNG, static GIF, etc. - gets resized and re-encoded as a
+        // compressed JPEG.
+        $local_path = trailingslashit($cache_dir) . $hash . '.jpg';
+        $local_url = trailingslashit($this->get_image_cache_url()) . $hash . '.jpg';
+        $editor = wp_get_image_editor($tmp_file);
+        if (!is_wp_error($editor)) {
+            $original_size = $editor->get_size();
+            $max_dim = 480; // comfortably covers the largest on-page display size (280px) at 2x pixel density
+            if ($original_size && ($original_size['width'] > $max_dim || $original_size['height'] > $max_dim)) {
+                $editor->resize($max_dim, $max_dim, false);
+            }
+            $editor->set_quality(78);
+            $saved = $editor->save($local_path, 'image/jpeg');
+            wp_delete_file($tmp_file);
+            if (!is_wp_error($saved)) {
+                if ($debug) { $this->log_debug('Converted/resized/compressed to JPEG' . ($original_size ? ' (from ' . $original_size['width'] . 'x' . $original_size['height'] . ', ' . $ext . ')' : '') . ' for ' . $image_url); }
+                return $local_url;
+            }
+            if ($debug) { $this->log_debug('Image editor save failed for ' . $image_url . ', falling back to unconverted original.'); }
+        } else {
+            wp_delete_file($tmp_file);
+            if ($debug) { $this->log_debug('No image editor available for ' . $image_url . ', falling back to unconverted original.'); }
+        }
+
+        // Fallback: keep the original bytes/extension untouched if conversion failed for any reason.
+        $fallback_path = trailingslashit($cache_dir) . $hash . '.' . $ext;
+        $fallback_url = trailingslashit($this->get_image_cache_url()) . $hash . '.' . $ext;
+        $written = $wp_filesystem->put_contents($fallback_path, $body, FS_CHMOD_FILE);
+        if ($debug) { $this->log_debug($written ? 'Cached image saved (unresized fallback): ' . $fallback_path : 'Failed to write cached image: ' . $fallback_path); }
+        return $written ? $fallback_url : '';
+    }
+
+    // Animated GIFs contain multiple "Graphic Control Extension" blocks (one per frame); a
+    // static GIF has at most one. Used to decide whether a .gif can be safely re-encoded.
+    private function is_animated_gif($file_path) {
+        global $wp_filesystem;
+        if (empty($wp_filesystem)) { require_once(ABSPATH . '/wp-admin/includes/file.php'); WP_Filesystem(); }
+        $contents = $wp_filesystem->get_contents($file_path);
+        if (empty($contents)) { return false; }
+        preg_match_all('/\x00\x21\xF9\x04.{4}\x00(\x2C|\x21)/s', $contents, $matches);
+        return isset($matches[0]) && count($matches[0]) > 1;
     }
 
     // Removes cached image files that are no longer referenced by the current feed data,
@@ -434,7 +498,29 @@ class Universal_News_Feed_Plugin {
                 }
             }
             if (is_null($items) && $debug) { $this->log_debug('Both hybrid and internal fetch failed for "' . $feed['name'] . '" — no items retrieved.'); }
-            if (!is_null($items)) { $processed_items = []; foreach($items as $item) { $item['sourceName'] = $feed['name']; $image_to_cache = !empty($item['thumbnail']) ? $item['thumbnail'] : (!empty($item['enclosure']['link']) ? html_entity_decode($item['enclosure']['link']) : ''); if (!empty($image_to_cache)) { if ($debug && empty($item['thumbnail'])) { $this->log_debug('Image found only in enclosure field for "' . $item['title'] . '", caching that instead: ' . $image_to_cache); } $cached_url = $this->cache_image_locally($image_to_cache); if ($cached_url) { $item['thumbnail'] = $cached_url; } } $processed_items[] = $item; } $all_news = array_merge($all_news, $processed_items); }
+            $keywords = !empty($feed['keywords']) ? array_filter(array_map('trim', explode(',', strtolower($feed['keywords'])))) : [];
+            if (!is_null($items)) {
+                $processed_items = [];
+                $skipped_by_keyword = 0;
+                foreach($items as $item) {
+                    if (!empty($keywords)) {
+                        $haystack = strtolower(wp_strip_all_tags((isset($item['title']) ? $item['title'] : '') . ' ' . (isset($item['description']) ? $item['description'] : '')));
+                        $matched = false;
+                        foreach ($keywords as $keyword) { if ($keyword !== '' && strpos($haystack, $keyword) !== false) { $matched = true; break; } }
+                        if (!$matched) { $skipped_by_keyword++; continue; }
+                    }
+                    $item['sourceName'] = $feed['name'];
+                    $image_to_cache = !empty($item['thumbnail']) ? $item['thumbnail'] : (!empty($item['enclosure']['link']) ? html_entity_decode($item['enclosure']['link']) : '');
+                    if (!empty($image_to_cache)) {
+                        if ($debug && empty($item['thumbnail'])) { $this->log_debug('Image found only in enclosure field for "' . $item['title'] . '", caching that instead: ' . $image_to_cache); }
+                        $cached_url = $this->cache_image_locally($image_to_cache);
+                        if ($cached_url) { $item['thumbnail'] = $cached_url; }
+                    }
+                    $processed_items[] = $item;
+                }
+                if ($debug && !empty($keywords)) { $this->log_debug('Keyword filter for "' . $feed['name'] . '" (' . implode(', ', $keywords) . ') kept ' . count($processed_items) . ' item(s), skipped ' . $skipped_by_keyword . '.'); }
+                $all_news = array_merge($all_news, $processed_items);
+            }
         }
         usort($all_news, function($a, $b) { return strtotime($b['pubDate']) - strtotime($a['pubDate']); });
         if ($debug) { $this->log_debug('--- Fetch cycle finished: ' . count($all_news) . ' total item(s) across all feeds ---'); }

@@ -4,7 +4,7 @@ Tags: rss, news feed, aggregator, shortcode
 Requires at least: 5.8
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 2.5
+Stable tag: 2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -55,6 +55,12 @@ Yes. Use the `source` attribute on the shortcode with the exact Source Name you 
 By default, hourly. This can be changed to twice daily or daily under Settings > Universal News Feed > Advanced. You can also trigger an immediate refresh with the "Force Refresh Now" button on the settings screen.
 
 == Changelog ==
+
+= 2.7 =
+PNGs and static GIFs are now also resized and re-encoded as compressed JPEGs, same as JPGs already were — these lossless formats were frequently 5-10x larger than a JPEG of the same photo needs to be. Animated GIFs are detected automatically and still cached untouched so they keep their animation. Note: this only applies to images cached from now on; use Debug Log > Clear Image Cache to force existing large images to be re-downloaded and reprocessed.
+
+= 2.6 =
+Two changes: (1) each RSS feed source can now have an optional "Keywords" filter, so a broad feed (e.g. a general "Style" section that mixes fashion with unrelated lifestyle/politics/etc.) can be narrowed down to only the on-topic articles. (2) Cached images are now automatically resized (max 480px) and compressed (quality 82) instead of storing the publisher's original file as-is — publisher photos are often 1200px+ wide even though the plugin only ever displays them at 160-280px, so this meaningfully cuts page weight and load time. Animated GIFs are left untouched so they keep their animation.
 
 = 2.5 =
 Added an explicit hover/focus color for the "Load More News" button (a darker shade of the same blue) so it no longer falls back to a washed-out default state on hover.

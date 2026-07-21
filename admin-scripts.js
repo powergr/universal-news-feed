@@ -11,7 +11,7 @@ jQuery(document).ready(function ($) {
       }
     });
     container.append(
-      `<div class="lfn-feed-row"><input type="text" name="lfn_settings[rss_feeds][${newIndex}][name]" placeholder="Source Name" size="30" /><input type="url" name="lfn_settings[rss_feeds][${newIndex}][url]" placeholder="RSS Feed URL" size="50" /><button type="button" class="button lfn-remove-feed">Remove</button></div>`,
+      `<div class="lfn-feed-row"><input type="text" name="lfn_settings[rss_feeds][${newIndex}][name]" placeholder="Source Name" size="30" /><input type="url" name="lfn_settings[rss_feeds][${newIndex}][url]" placeholder="RSS Feed URL" size="50" /><input type="text" name="lfn_settings[rss_feeds][${newIndex}][keywords]" placeholder="Keywords (optional), e.g. fashion, style, designer" size="35" /><button type="button" class="button lfn-remove-feed">Remove</button></div>`,
     );
   });
   $("#lfn-feeds-container").on("click", ".lfn-remove-feed", function () {
